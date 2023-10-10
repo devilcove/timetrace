@@ -31,13 +31,9 @@ const (
 
 func BuildMainPage(w fyne.Window) *fyne.Container {
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
-	//logo := canvas.NewImageFromFile("./assets/logo.png")
-	//logoBox := container.NewCenter()
-	//size := logoBox.MinSize()
 	logo.FillMode = canvas.ImageFillOriginal
 	hello := widget.NewLabel("Hello World!")
 	hello.Alignment = fyne.TextAlignCenter
-	//testing := widget.NewLabel("Timetrace")
 	status, err := getStatus()
 	if err != nil {
 		return BuildLoginPage(w)
@@ -46,26 +42,14 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.Total))
 	stopButton := widget.NewButton("Stop    ", stop)
 	c := container.NewVBox()
-	//c.Add(testing)
 	c.Add(hello)
 	c.Add(logo)
 	h := container.NewCenter()
 	h.Add(text)
 	h2 := container.NewCenter()
 	h2.Add(stopButton)
-	//h2.Add(refresh)
-	//h2.Add(widget.NewButton("Stop   ", stop))
 	c.Add(h)
 	c.Add(h2)
-	//	testing,
-	//	logoBox,
-	//	hello,
-	//	text,
-	//	widget.NewButton("refresh", func() {
-	//		BuildMainPage(w)
-	//	}),
-	//	widget.NewButton("Stop", stop),
-	//)
 	return c
 }
 
