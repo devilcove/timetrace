@@ -3,8 +3,8 @@ package assets
 import _ "embed"
 
 var (
-	//go: embed logo.png
+	//go:embed logo.png
 	Logo []byte
-	//go: embed small_logo.png
+	//go:embed logo-small.png
 	SmallLogo []byte
 )

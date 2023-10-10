@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 	"github.com/devilcove/timetrace/assets"
+	"github.com/devilcove/timetraced/models"
 )
 
 type Route int
@@ -28,24 +30,42 @@ const (
 )
 
 func BuildMainPage(w fyne.Window) *fyne.Container {
+	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
+	//logo := canvas.NewImageFromFile("./assets/logo.png")
+	//logoBox := container.NewCenter()
+	//size := logoBox.MinSize()
+	logo.FillMode = canvas.ImageFillOriginal
 	hello := widget.NewLabel("Hello World!")
-	cookie, err := getCookie()
-	if err != nil {
-		return BuildLoginPage(w)
-	}
-	status, err := getStatus(cookie)
+	hello.Alignment = fyne.TextAlignCenter
+	//testing := widget.NewLabel("Timetrace")
+	status, err := getStatus()
 	if err != nil {
 		return BuildLoginPage(w)
 	}
 	text := widget.NewTextGrid()
-	text.SetText(status)
-	c := container.NewVBox(
-		hello,
-		text,
-		widget.NewButton("Hi", func() {
-			hello.SetText("welcome)")
-		}),
-	)
+	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.Total))
+	stopButton := widget.NewButton("Stop    ", stop)
+	c := container.NewVBox()
+	//c.Add(testing)
+	c.Add(hello)
+	c.Add(logo)
+	h := container.NewCenter()
+	h.Add(text)
+	h2 := container.NewCenter()
+	h2.Add(stopButton)
+	//h2.Add(refresh)
+	//h2.Add(widget.NewButton("Stop   ", stop))
+	c.Add(h)
+	c.Add(h2)
+	//	testing,
+	//	logoBox,
+	//	hello,
+	//	text,
+	//	widget.NewButton("refresh", func() {
+	//		BuildMainPage(w)
+	//	}),
+	//	widget.NewButton("Stop", stop),
+	//)
 	return c
 }
 
@@ -96,6 +116,12 @@ func buildMenu(w fyne.Window) error {
 	fileMenu.Items = append(fileMenu.Items, fyne.NewMenuItem("Quit", func() {
 		w.Close()
 	}))
+	//Projects
+	projectsMenu := fyne.NewMenu("Projects")
+	projectsMenu.Items = make([]*fyne.MenuItem, 0)
+	//Reports
+	reportsMenu := fyne.NewMenu("Reports")
+	reportsMenu.Items = make([]*fyne.MenuItem, 0)
 	// About
 	helpMenuItem := fyne.NewMenuItem("Help", func() {
 		dialog.ShowInformation("About", "v0.1.0", w)
@@ -107,6 +133,8 @@ func buildMenu(w fyne.Window) error {
 	menu := fyne.MainMenu{}
 	menu.Items = make([]*fyne.Menu, 0)
 	menu.Items = append(menu.Items, fileMenu)
+	menu.Items = append(menu.Items, projectsMenu)
+	menu.Items = append(menu.Items, reportsMenu)
 	menu.Items = append(menu.Items, aboutMenu)
 	w.SetMainMenu(&menu)
 	return nil
@@ -167,29 +195,61 @@ func getCookie() (http.Cookie, error) {
 	return cookie, nil
 }
 
-func getStatus(cookie http.Cookie) (string, error) {
+func getStatus() (models.StatusResponse, error) {
+	data := models.StatusResponse{}
+	cookie, err := getCookie()
+	if err != nil {
+		return data, errors.New("cookie not set")
+	}
 	slog.Info("fetching current status")
 	client := &http.Client{Timeout: time.Second * 10}
 	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/projects/status", nil)
 	if err != nil {
 		slog.Error("http request", "error", err)
-		return err.Error(), err
+		return data, err
 	}
 	req.AddCookie(&cookie)
 	response, err := client.Do(req)
 	if err != nil {
 		slog.Error("response", "error", err)
-		return err.Error(), err
+		return data, err
 	}
 	defer response.Body.Close()
-	slog.Info("status response", "code", response.Status, "data", response.Body)
 	if response.StatusCode != http.StatusOK {
 		slog.Error("status code", "status", response.Status, "code", response.StatusCode)
-		return response.Status, errors.New("response error")
+		return data, err
 	}
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return err.Error(), err
+		return data, err
 	}
-	return string(body), nil
+	if err := json.Unmarshal(body, &data); err != nil {
+		return data, err
+	}
+	slog.Info("status response", "code", response.Status, "data", data)
+	return data, nil
+}
+
+func stop() {
+	cookie, err := getCookie()
+	if err != nil {
+		slog.Error("cookie retrieval", "error", err)
+		return
+	}
+	client := &http.Client{Timeout: time.Second * 10}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/projects/stop", nil)
+	if err != nil {
+		slog.Error("http request", "error", err)
+		return
+	}
+	req.AddCookie(&cookie)
+	response, err := client.Do(req)
+	if err != nil {
+		slog.Error("response", "error", err)
+		return
+	}
+	if response.StatusCode != http.StatusOK {
+		slog.Error("status code", "status", response.Status, "code", response.StatusCode)
+		return
+	}
 }
