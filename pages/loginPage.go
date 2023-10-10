@@ -50,8 +50,8 @@ func BuildLoginPage(wnd fyne.Window) *fyne.Container {
 			return
 
 		}
-		if err := os.WriteFile("/tmp/cookie.timetrace", cookieJ, 0644); err != nil {
-			slog.Error("failed to save cookie", err)
+		if err := os.WriteFile(os.TempDir()+"/cookie.timetrace", cookieJ, 0644); err != nil {
+			slog.Error("failed to save cookie", "error", err)
 			dialog.ShowError(fmt.Errorf("%w. failed to save cookie", err), wnd)
 			return
 		}

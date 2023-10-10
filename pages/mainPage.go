@@ -169,7 +169,7 @@ func login(u, p string) (http.Cookie, error) {
 
 func getCookie() (http.Cookie, error) {
 	cookie := http.Cookie{}
-	file, err := os.ReadFile("/tmp/cookie.timetrace")
+	file, err := os.ReadFile(os.TempDir() + "/cookie.timetrace")
 	if err != nil {
 		return cookie, err
 	}
