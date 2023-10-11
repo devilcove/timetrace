@@ -40,7 +40,10 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 	}
 	text := widget.NewTextGrid()
 	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.Total))
-	stopButton := widget.NewButton("Stop    ", stop)
+	stopButton := widget.NewButton("Stop    ", func() {
+		stop()
+		w.SetContent(BuildMainPage(w))
+	})
 	c := container.NewVBox()
 	c.Add(hello)
 	c.Add(logo)
@@ -67,7 +70,7 @@ func GetMainWindow(app fyne.App, title string) fyne.Window {
 	//})
 	//buildMenu(w)
 	//buildWindow(w)
-	w.Resize(fyne.Size{Width: 1024, Height: 768})
+	w.Resize(fyne.Size{Width: 512, Height: 240})
 	return w
 }
 
