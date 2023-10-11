@@ -5,6 +5,10 @@ import (
 	"github.com/devilcove/timetrace/pages"
 )
 
+func init() {
+	pages.GetStatus()
+}
+
 func main() {
 	a := app.New()
 	w := pages.GetMainWindow(a, "TimeTrace")
