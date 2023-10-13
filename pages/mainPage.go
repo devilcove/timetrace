@@ -28,6 +28,16 @@ const (
 	LoginPage
 )
 
+type DisplayStatus struct {
+	Current      string
+	SessionTime  string
+	CurrentTotal string
+	Totals       []struct {
+		Project string
+		Total   string
+	}
+}
+
 func BuildMainPage(w fyne.Window) *fyne.Container {
 	buildMenu(w)
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
@@ -39,20 +49,40 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 		return BuildLoginPage(w)
 	}
 	text := widget.NewTextGrid()
-	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.Total))
+	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.CurrentTotal))
 	stopButton := widget.NewButton("Stop    ", func() {
 		stop()
 		w.SetContent(BuildMainPage(w))
 	})
+	todayTotals := widget.NewLabel("Total Time Today")
+	todayTotals.Alignment = fyne.TextAlignCenter
+	var durations string
+	for i, duration := range status.Durations {
+		durations = durations + "\n" + duration.Project + "\t\t"
+		durations = durations + duration.Elapsed
+		fmt.Println(i, durations)
+	}
+	fmt.Println(durations)
+	text2 := widget.NewTextGrid()
+	text2.SetText(durations)
+	text3 := widget.NewTextGrid()
+	text3.SetText(fmt.Sprintf("\nTotal\t\t\t%s", status.DailyTotal))
 	c := container.NewVBox()
+	session := container.NewCenter()
+	session.Add(text)
+	stop := container.NewCenter()
+	stop.Add(stopButton)
+	summary := container.NewCenter()
+	summary.Add(text2)
+	dailyTotal := container.NewCenter()
+	dailyTotal.Add(text3)
 	c.Add(hello)
 	c.Add(logo)
-	h := container.NewCenter()
-	h.Add(text)
-	h2 := container.NewCenter()
-	h2.Add(stopButton)
-	c.Add(h)
-	c.Add(h2)
+	c.Add(session)
+	c.Add(stop)
+	c.Add(todayTotals)
+	c.Add(summary)
+	c.Add(dailyTotal)
 	return c
 }
 
