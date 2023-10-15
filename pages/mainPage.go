@@ -57,12 +57,10 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 	todayTotals := widget.NewLabel("Total Time Today")
 	todayTotals.Alignment = fyne.TextAlignCenter
 	var durations string
-	for i, duration := range status.Durations {
+	for _, duration := range status.Durations {
 		durations = durations + "\n" + duration.Project + "\t\t"
 		durations = durations + duration.Elapsed
-		fmt.Println(i, durations)
 	}
-	fmt.Println(durations)
 	text2 := widget.NewTextGrid()
 	text2.SetText(durations)
 	text3 := widget.NewTextGrid()
@@ -212,7 +210,6 @@ func GetStatus() (models.StatusResponse, error) {
 		loggedIn = false
 		return data, err
 	}
-	slog.Info("status response", "code", response.Status, "data", data)
 	loggedIn = true
 	return data, nil
 }
