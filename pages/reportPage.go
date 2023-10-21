@@ -15,7 +15,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/devilcove/timetraced/models"
-	"github.com/kr/pretty"
 )
 
 var (
@@ -109,7 +108,6 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 			Users:    usersCheckBoxGroup.Selected,
 		}
 		payload, err := json.Marshal(data)
-		fmt.Println(string(payload))
 		if err != nil {
 			slog.Error("json error", "error", err)
 		}
@@ -134,7 +132,7 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		if err := json.Unmarshal(body, &reports); err != nil {
 			return
 		}
-		pretty.Println(reports)
+		w.SetContent(BuildResultsPage(w, reports))
 
 	})
 	//layout
