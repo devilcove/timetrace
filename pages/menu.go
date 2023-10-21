@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	wid "fyne.io/x/fyne/widget"
 	"github.com/devilcove/timetraced/models"
 )
 
@@ -22,7 +23,8 @@ var loggedIn bool = true
 func buildMenu(w fyne.Window) error {
 	slog.Info("building menu", "loggedin", loggedIn)
 	//File
-	fileMenuItem := fyne.NewMenuItem("File", func() {
+	status := fyne.NewMenuItem("Status", func() {
+		w.SetContent(BuildMainPage(w))
 	})
 	logout := fyne.NewMenuItem("Logout", func() {
 		loggedIn = false
@@ -34,15 +36,10 @@ func buildMenu(w fyne.Window) error {
 		cookie.Close()
 		w.SetContent(BuildLoginPage(w))
 	})
-	fileMenu := fyne.NewMenu("File")
-	fileMenu.Items = make([]*fyne.MenuItem, 0)
-	//if loggedIn {
-	fileMenu.Items = append(fileMenu.Items, fileMenuItem)
-	fileMenu.Items = append(fileMenu.Items, logout)
-	//}
-	fileMenu.Items = append(fileMenu.Items, fyne.NewMenuItem("Quit", func() {
+	quit := fyne.NewMenuItem("Quit", func() {
 		w.Close()
-	}))
+	})
+	fileMenu := fyne.NewMenu("File", status, logout, quit)
 	//Projects
 	projects := getProjects()
 	projectsMenu := fyne.NewMenu("Projects")
@@ -55,38 +52,133 @@ func buildMenu(w fyne.Window) error {
 			w.SetContent(BuildMainPage(w))
 		})
 	}
-	projectsMenu.Items = append(projectsMenu.Items, fyne.NewMenuItem("Add Project", func() {
-		project := widget.NewEntry()
-		project.Resize(fyne.Size{Width: 800})
+	if currentUser.IsAdmin {
+		projectsMenu.Items = append(projectsMenu.Items, fyne.NewMenuItem("Add Project", func() {
+			project := widget.NewEntry()
+			project.Resize(fyne.Size{Width: 800})
+			items := []*widget.FormItem{
+				widget.NewFormItem("Project to Add", project),
+			}
+			d := dialog.NewForm("Add Project", "Add  ", "Cancel", items, func(b bool) {
+				if !b {
+					return
+				}
+				if err := addProject(project.Text); err != nil {
+					dialog.ShowError(err, w)
+				}
+			}, w)
+			d.Resize(fyne.Size{Width: 400})
+			d.Show()
+			buildMenu(w)
+			w.Content().Refresh()
+		}))
+	}
+
+	//Reports
+	reportButton := fyne.NewMenuItem("report", func() {
+		w.SetContent(BuildReportPage(w))
+	})
+	reportMenuItem := fyne.NewMenuItem("Generate Report", func() {
+		var startTime, endTime time.Time
+		start := wid.NewCalendar(time.Now(), func(t time.Time) {
+			startTime = t
+		})
+
+		end := wid.NewCalendar(time.Now(), func(t time.Time) {
+			endTime = t
+		})
 		items := []*widget.FormItem{
-			widget.NewFormItem("Project to Add", project),
+			widget.NewFormItem("StartDate", start),
+			widget.NewFormItem("EndDate", end),
 		}
-		d := dialog.NewForm("Add Project", "Add  ", "Cancel", items, func(b bool) {
+		d := dialog.NewForm("Generate Report", "Submit", "Cancel", items, func(b bool) {
 			if !b {
 				return
 			}
-			if err := addProject(project.Text); err != nil {
-				dialog.ShowError(err, w)
-			}
+			getReport(startTime, endTime)
 		}, w)
-		d.Resize(fyne.Size{Width: 400})
+		//p := widget.NewModalPopUp(x, d)
+		w.Resize(fyne.Size{Width: 400, Height: 800})
 		d.Show()
-		buildMenu(w)
-		w.Content().Refresh()
-	}))
-
-	//Reports
-	reportsMenu := fyne.NewMenu("Reports")
-	reportsMenu.Items = make([]*fyne.MenuItem, 0)
+		//w.SetContent(ReportPage(w))
+		w.SetContent(BuildMainPage(w))
+	})
+	reportsMenu := fyne.NewMenu("Reports", reportButton, reportMenuItem)
 
 	// Users
-	users := getUsers()
-	usersMenu := fyne.NewMenu("Users")
-	usersMenu.Items = make([]*fyne.MenuItem, len(users))
-	for i, user := range users {
-		user := user
-		usersMenu.Items[i] = fyne.NewMenuItem(user.Username, func() {
-			password := widget.NewEntry()
+	usersMenu := &fyne.Menu{}
+	if currentUser.IsAdmin {
+		users := getUsers()
+		usersMenu = fyne.NewMenu("Users")
+		usersMenu.Items = make([]*fyne.MenuItem, len(users))
+		for i, user := range users {
+			user := user
+			usersMenu.Items[i] = fyne.NewMenuItem("Edit "+user.Username, func() {
+				password := widget.NewPasswordEntry()
+				items := []*widget.FormItem{
+					widget.NewFormItem("New Password", password),
+				}
+				d := dialog.NewForm("Edit User", "Submit", "Cancel", items, func(b bool) {
+					if !b {
+						return
+					}
+					user.Password = password.Text
+					if err := editUser(user); err != nil {
+						dialog.ShowError(err, w)
+					}
+				}, w)
+				d.Resize(fyne.Size{Width: 400})
+				d.Show()
+				w.SetContent(BuildMainPage(w))
+			})
+		}
+		usersMenu.Items = append(usersMenu.Items, fyne.NewMenuItem("Add User", func() {
+			user := widget.NewEntry()
+			password := widget.NewPasswordEntry()
+			user.Resize(fyne.Size{Width: 800})
+			items := []*widget.FormItem{
+				widget.NewFormItem("User to Add", user),
+				widget.NewFormItem("Password", password),
+			}
+			d := dialog.NewForm("Add User", "Add  ", "Cancel", items, func(b bool) {
+				if !b {
+					return
+				}
+				err := addUser(models.User{Username: user.Text, Password: password.Text})
+				if err != nil {
+					dialog.ShowError(err, w)
+				} else {
+					dialog.ShowInformation("added user", user.Text, w)
+				}
+
+			}, w)
+			d.Resize(fyne.Size{Width: 400})
+			d.Show()
+			w.SetContent(BuildMainPage(w))
+
+		}))
+		usersMenu.Items = append(usersMenu.Items, fyne.NewMenuItem("Delete User", func() {
+			user := widget.NewEntry()
+			user.Resize(fyne.Size{Width: 800})
+			items := []*widget.FormItem{
+				widget.NewFormItem("User to Delete", user),
+			}
+			d := dialog.NewForm("Delete User", "Delete", "Cancel", items, func(b bool) {
+				if !b {
+					return
+				}
+				if err := deleteUser(user.Text); err != nil {
+					dialog.ShowError(err, w)
+				}
+			}, w)
+			d.Resize(fyne.Size{Width: 400})
+			d.Show()
+			w.SetContent(BuildMainPage(w))
+		}))
+	} else {
+		usersMenu = fyne.NewMenu("Users", fyne.NewMenuItem("Edit Password", func() {
+			user := currentUser
+			password := widget.NewPasswordEntry()
 			items := []*widget.FormItem{
 				widget.NewFormItem("New Password", password),
 			}
@@ -102,70 +194,18 @@ func buildMenu(w fyne.Window) error {
 			d.Resize(fyne.Size{Width: 400})
 			d.Show()
 			w.SetContent(BuildMainPage(w))
-		})
+
+		}))
 	}
-	usersMenu.Items = append(usersMenu.Items, fyne.NewMenuItem("Add User", func() {
-		user := widget.NewEntry()
-		password := widget.NewEntry()
-		user.Resize(fyne.Size{Width: 800})
-		items := []*widget.FormItem{
-			widget.NewFormItem("User to Add", user),
-			widget.NewFormItem("Password", password),
-		}
-		d := dialog.NewForm("Add User", "Add  ", "Cancel", items, func(b bool) {
-			if !b {
-				return
-			}
-			err := addUser(models.User{Username: user.Text, Password: password.Text})
-			if err != nil {
-				dialog.ShowError(err, w)
-			} else {
-				dialog.ShowInformation("added user", user.Text, w)
-			}
-
-		}, w)
-		d.Resize(fyne.Size{Width: 400})
-		d.Show()
-		w.SetContent(BuildMainPage(w))
-
-	}))
-	usersMenu.Items = append(usersMenu.Items, fyne.NewMenuItem("Delete User", func() {
-		user := widget.NewEntry()
-		user.Resize(fyne.Size{Width: 800})
-		items := []*widget.FormItem{
-			widget.NewFormItem("User to Delete", user),
-		}
-		d := dialog.NewForm("Delete User", "Delete", "Cancel", items, func(b bool) {
-			if !b {
-				return
-			}
-			if err := deleteUser(user.Text); err != nil {
-				dialog.ShowError(err, w)
-			}
-		}, w)
-		d.Resize(fyne.Size{Width: 400})
-		d.Show()
-		w.SetContent(BuildMainPage(w))
-	}))
 
 	// About
 	helpMenuItem := fyne.NewMenuItem("Help", func() {
 		dialog.ShowInformation("About", "v0.1.0", w)
 	})
-	aboutMenu := fyne.NewMenu("About")
-	aboutMenu.Items = make([]*fyne.MenuItem, 0)
-	aboutMenu.Items = append(aboutMenu.Items, helpMenuItem)
+	aboutMenu := fyne.NewMenu("About", helpMenuItem)
 	//MENU
-	menu := fyne.MainMenu{}
-	menu.Items = make([]*fyne.Menu, 0)
-	menu.Items = append(menu.Items, fileMenu)
-	//if loggedIn {
-	menu.Items = append(menu.Items, projectsMenu)
-	menu.Items = append(menu.Items, usersMenu)
-	menu.Items = append(menu.Items, reportsMenu)
-	//}
-	menu.Items = append(menu.Items, aboutMenu)
-	w.SetMainMenu(&menu)
+	menu := fyne.NewMainMenu(fileMenu, projectsMenu, usersMenu, reportsMenu, aboutMenu)
+	w.SetMainMenu(menu)
 	return nil
 }
 
@@ -358,4 +398,8 @@ func deleteUser(u string) error {
 		return fmt.Errorf("bad request %s", response.Status)
 	}
 	return nil
+}
+
+func getReport(s, e time.Time) {
+	slog.Info("get report", "start", s, "end", e)
 }
