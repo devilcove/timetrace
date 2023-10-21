@@ -42,8 +42,6 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 	buildMenu(w)
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
 	logo.FillMode = canvas.ImageFillOriginal
-	hello := widget.NewLabel("Hello World!")
-	hello.Alignment = fyne.TextAlignCenter
 	status, err := GetStatus()
 	if err != nil {
 		return BuildLoginPage(w)
@@ -74,7 +72,6 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 	summary.Add(text2)
 	dailyTotal := container.NewCenter()
 	dailyTotal.Add(text3)
-	c.Add(hello)
 	c.Add(logo)
 	c.Add(session)
 	c.Add(stop)
@@ -136,11 +133,11 @@ func login(u, p string) (http.Cookie, error) {
 		Username: u,
 		Password: p,
 	}
-	body, err := json.Marshal(postData)
+	payload, err := json.Marshal(postData)
 	if err != nil {
 		return http.Cookie{}, err
 	}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/login", bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/login", bytes.NewBuffer(payload))
 	if err != nil {
 		return http.Cookie{}, err
 	}
@@ -152,6 +149,13 @@ func login(u, p string) (http.Cookie, error) {
 	ok := response.StatusCode >= 200 && response.StatusCode < 300
 	if !ok {
 		return http.Cookie{}, fmt.Errorf("status %s", response.Status)
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return http.Cookie{}, fmt.Errorf("read response %v", err)
+	}
+	if err := json.Unmarshal(body, &currentUser); err != nil {
+		return http.Cookie{}, fmt.Errorf("json unmarshal %v", err)
 	}
 	for _, c := range response.Cookies() {
 		if c.Name == "time" {
