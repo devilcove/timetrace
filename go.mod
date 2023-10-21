@@ -5,13 +5,9 @@ go 1.21.1
 require (
 	fyne.io/fyne/v2 v2.4.1
 	github.com/devilcove/timetraced v0.0.0-00010101000000-000000000000
-	github.com/kr/pretty v0.3.1
 )
 
-require (
-	github.com/kr/text v0.2.0 // indirect
-	github.com/rogpeppe/go-internal v1.9.0 // indirect
-)
+require github.com/kr/text v0.2.0 // indirect
 
 require (
 	fyne.io/systray v1.10.1-0.20230722100817-88df1e0ffa9a // indirect
