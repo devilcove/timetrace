@@ -14,7 +14,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	wid "fyne.io/x/fyne/widget"
 	"github.com/devilcove/timetraced/models"
 )
 
@@ -78,32 +77,7 @@ func buildMenu(w fyne.Window) error {
 	reportButton := fyne.NewMenuItem("report", func() {
 		w.SetContent(BuildReportPage(w))
 	})
-	reportMenuItem := fyne.NewMenuItem("Generate Report", func() {
-		var startTime, endTime time.Time
-		start := wid.NewCalendar(time.Now(), func(t time.Time) {
-			startTime = t
-		})
-
-		end := wid.NewCalendar(time.Now(), func(t time.Time) {
-			endTime = t
-		})
-		items := []*widget.FormItem{
-			widget.NewFormItem("StartDate", start),
-			widget.NewFormItem("EndDate", end),
-		}
-		d := dialog.NewForm("Generate Report", "Submit", "Cancel", items, func(b bool) {
-			if !b {
-				return
-			}
-			getReport(startTime, endTime)
-		}, w)
-		//p := widget.NewModalPopUp(x, d)
-		w.Resize(fyne.Size{Width: 400, Height: 800})
-		d.Show()
-		//w.SetContent(ReportPage(w))
-		w.SetContent(BuildMainPage(w))
-	})
-	reportsMenu := fyne.NewMenu("Reports", reportButton, reportMenuItem)
+	reportsMenu := fyne.NewMenu("Reports", reportButton)
 
 	// Users
 	usersMenu := &fyne.Menu{}
@@ -317,6 +291,36 @@ func getUsers() (users []models.User) {
 		return
 	}
 	if err := json.Unmarshal(body, &users); err != nil {
+		return
+	}
+	return
+}
+
+func getUser() (user models.User) {
+	cookie, err := getCookie()
+	if err != nil {
+		loggedIn = false
+		return
+	}
+	client := &http.Client{Timeout: time.Second * 10}
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/users/current", nil)
+	if err != nil {
+		return
+	}
+	req.AddCookie(&cookie)
+	response, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return
+	}
+	if err := json.Unmarshal(body, &user); err != nil {
 		return
 	}
 	return

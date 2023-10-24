@@ -39,13 +39,15 @@ type DisplayStatus struct {
 }
 
 func BuildMainPage(w fyne.Window) *fyne.Container {
-	buildMenu(w)
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
 	logo.FillMode = canvas.ImageFillOriginal
 	status, err := GetStatus()
 	if err != nil {
 		return BuildLoginPage(w)
 	}
+	user := getUser()
+	currentUser = user
+	buildMenu(w)
 	text := widget.NewTextGrid()
 	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.CurrentTotal))
 	stopButton := widget.NewButton("Stop    ", func() {
