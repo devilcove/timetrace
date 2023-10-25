@@ -8,6 +8,7 @@
 *.so
 *.dylib
 timetrace
+standalone/standalone
 
 # Test binary, built with `go test -c`
 *.test
@@ -20,3 +21,7 @@ timetrace
 
 # Go workspace file
 go.work
+
+# dbfiles
+**/time.db
+**/test.db
