@@ -1,8 +1,6 @@
 package pages
 
 import (
-	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -17,24 +15,19 @@ import (
 	"github.com/devilcove/timetrace/standalone/models"
 )
 
-type Route int
+var currentPage string
 
-const (
-	MainPage Route = iota
-	LoginPage
-)
-
-type DisplayStatus struct {
-	Current      string
-	SessionTime  string
-	CurrentTotal string
-	Totals       []struct {
-		Project string
-		Total   string
-	}
+func SetCurrentPage(page string) {
+	currentPage = page
 }
 
-func BuildMainPage(w fyne.Window) *fyne.Container {
+func GetCurrentPage() string {
+	return currentPage
+}
+
+func BuildStatusPage(w fyne.Window) *fyne.Container {
+
+	buildMenu(w)
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
 	logo.FillMode = canvas.ImageFillOriginal
 	status, err := GetStatus()
@@ -42,39 +35,28 @@ func BuildMainPage(w fyne.Window) *fyne.Container {
 		slog.Error("get status", "error", err)
 		os.Exit(1)
 	}
-	buildMenu(w)
-	text := widget.NewTextGrid()
-	text.SetText(fmt.Sprintf("Current Project:\t%s\nTime This Session:\t%s\nTime Today:\t\t\t%s\n", status.Current, status.Elapsed, status.CurrentTotal))
+	form := &widget.Form{
+		Items: []*widget.FormItem{
+			{Text: "Current Project", Widget: widget.NewLabel(status.Current)},
+			{Text: "Time This Session", Widget: widget.NewLabel(status.Elapsed)},
+			{Text: "Time Today", Widget: widget.NewLabel(status.CurrentTotal)},
+		},
+	}
 	stopButton := widget.NewButton("Stop    ", func() {
 		stop()
-		w.SetContent(BuildMainPage(w))
+		SetCurrentPage("status")
+		w.SetContent(BuildStatusPage(w))
 	})
+	stop := container.NewCenter(stopButton)
 	todayTotals := widget.NewLabel("Total Time Today")
 	todayTotals.Alignment = fyne.TextAlignCenter
-	var durations string
+	dailyForm := &widget.Form{}
 	for _, duration := range status.Durations {
-		durations = durations + "\n" + duration.Project + "\t\t"
-		durations = durations + duration.Elapsed
+		dailyForm.Append(duration.Project, widget.NewLabel(duration.Elapsed))
+
 	}
-	text2 := widget.NewTextGrid()
-	text2.SetText(durations)
-	text3 := widget.NewTextGrid()
-	text3.SetText(fmt.Sprintf("\nTotal\t\t\t%s", status.DailyTotal))
-	c := container.NewVBox()
-	session := container.NewCenter()
-	session.Add(text)
-	stop := container.NewCenter()
-	stop.Add(stopButton)
-	summary := container.NewCenter()
-	summary.Add(text2)
-	dailyTotal := container.NewCenter()
-	dailyTotal.Add(text3)
-	c.Add(logo)
-	c.Add(session)
-	c.Add(stop)
-	c.Add(todayTotals)
-	c.Add(summary)
-	c.Add(dailyTotal)
+	dailyForm.Append("Total Today", widget.NewLabel(status.DailyTotal))
+	c := container.NewCenter(container.NewVBox(logo, form, stop, todayTotals, dailyForm))
 	return c
 }
 
@@ -96,16 +78,10 @@ func GetMainWindow(app fyne.App, title string) fyne.Window {
 	return w
 }
 
-//func buildWindow(w fyne.Window) error {
-//	w.Resize(fyne.Size{Width: 1024, Height: 768})
-//	//Navigate(w, LoginPage)
-//	return nil
-//}
-
 func buildSystemTray(w fyne.Window) *fyne.Menu {
 	tray := fyne.NewMenu("Hello",
 		fyne.NewMenuItem("open window", func() {
-			log.Println("Tapped show")
+			slog.Info("Tapped show")
 			w.Show()
 		}),
 	)

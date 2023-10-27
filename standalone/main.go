@@ -14,6 +14,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var currentPage = "status"
+
 //func init() {
 //pages.GetStatus()
 //}
@@ -32,11 +34,14 @@ func main() {
 	a := app.New()
 	w := pages.GetMainWindow(a, "TimeTrace")
 	//w := a.NewWindow("Timetrace")
-	w.SetContent(pages.BuildMainPage(w))
+	pages.SetCurrentPage("status")
+	w.SetContent(pages.BuildStatusPage(w))
 	go func() {
 		for range time.Tick(time.Minute) {
-			slog.Info("refreshing page")
-			w.SetContent(pages.BuildMainPage(w))
+			if pages.GetCurrentPage() == "status" {
+				slog.Info("refreshing page")
+				w.SetContent(pages.BuildStatusPage(w))
+			}
 		}
 	}()
 
