@@ -74,7 +74,7 @@ func GetMainWindow(app fyne.App, title string) fyne.Window {
 	//})
 	//buildMenu(w)
 	//buildWindow(w)
-	w.Resize(fyne.Size{Width: 512, Height: 240})
+	w.Resize(fyne.Size{Width: 725, Height: 300})
 	return w
 }
 

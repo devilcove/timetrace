@@ -37,8 +37,8 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		position.Y += startButton.Size().Height
 		startCal.showAtPos(w.Canvas(), position)
 	})
-	startBox := container.NewVBox(start, startButton)
-	startBox.Resize(fyne.Size{Width: 100})
+	emptyButton := widget.NewLabel("")
+	startBox := container.NewGridWithColumns(3, emptyButton, (container.NewGridWithColumns(2, start, startButton)))
 	//endTime
 	endTime := time.Now()
 	endStr := binding.NewString()
@@ -55,7 +55,7 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		position.Y += endButton.Size().Height
 		endCal.showAtPos(w.Canvas(), position)
 	})
-	endBox := container.NewVBox(end, endButton)
+	endBox := container.NewCenter(container.NewVBox(end, endButton))
 
 	//projects
 	projects := getProjects()
@@ -72,10 +72,10 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 			projectsCheckGroup.SetSelected([]string{})
 		}
 	})
-	projectBox := container.NewVBox(all, projectsCheckGroup)
+	projectBox := container.NewCenter(container.NewVBox(all, projectsCheckGroup))
 
 	//Submit
-	button := widget.NewButton("Submit", func() {
+	button := container.NewCenter(widget.NewButton("Submit", func() {
 
 		data := models.ReportRequest{
 			Start:    startTime,
@@ -89,7 +89,7 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		SetCurrentPage("results")
 		w.SetContent(BuildResultsPage(w, reports))
 
-	})
+	}))
 
 	//layout
 	vBox := &fyne.Container{}
