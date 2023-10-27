@@ -86,6 +86,7 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		if err != nil {
 			slog.Error("get records", "error", err)
 		}
+		SetCurrentPage("results")
 		w.SetContent(BuildResultsPage(w, reports))
 
 	})
