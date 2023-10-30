@@ -43,7 +43,6 @@ func buildMenu(w fyne.Window) error {
 	}
 	projectsMenu.Items = append(projectsMenu.Items, fyne.NewMenuItem("Add Project", func() {
 		project := widget.NewEntry()
-		project.Resize(fyne.Size{Width: 800})
 		items := []*widget.FormItem{
 			widget.NewFormItem("Project to Add", project),
 		}

@@ -74,13 +74,13 @@ func GetMainWindow(app fyne.App, title string) fyne.Window {
 	//})
 	//buildMenu(w)
 	//buildWindow(w)
-	w.Resize(fyne.Size{Width: 512, Height: 240})
+	w.Resize(fyne.Size{Width: 512, Height: 256})
 	return w
 }
 
 func buildSystemTray(w fyne.Window) *fyne.Menu {
 	tray := fyne.NewMenu("Hello",
-		fyne.NewMenuItem("open window", func() {
+		fyne.NewMenuItem("Display", func() {
 			slog.Info("Tapped show")
 			w.Show()
 		}),

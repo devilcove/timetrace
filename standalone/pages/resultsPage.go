@@ -30,7 +30,7 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 		labelBox.Add(widget.NewLabel(k))
 		dateBox := container.NewVBox()
 		for _, date := range v {
-			startStop := fmt.Sprint(date.start.Format("2006-01-02:03:04"), " ", date.end.Format("2006-01-02:03:04"))
+			startStop := fmt.Sprint(date.start.Format(time.DateTime), " ", date.end.Format(time.DateTime))
 			dateBox.Add(widget.NewButton(startStop, func() {}))
 		}
 		labelBox.Add(dateBox)
