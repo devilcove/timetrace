@@ -10,9 +10,11 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/devilcove/timetrace/assets"
 	"github.com/devilcove/timetrace/standalone/models"
+	"github.com/google/uuid"
 )
 
 type record struct {
+	id    uuid.UUID
 	start time.Time
 	end   time.Time
 }
@@ -20,22 +22,34 @@ type record struct {
 func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 	records := make(map[string][]record)
 	for _, data := range r {
-		records[data.Project] = append(records[data.Project], record{start: data.Start, end: data.End})
+		records[data.Project] = append(records[data.Project], record{start: data.Start, end: data.End, id: data.ID})
 	}
 	buildMenu(w)
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
 	logo.FillMode = canvas.ImageFillOriginal
-	labelBox := container.NewVBox()
-	for k, v := range records {
-		labelBox.Add(widget.NewLabel(k))
-		dateBox := container.NewVBox()
-		for _, date := range v {
-			startStop := fmt.Sprint(date.start.Format(time.DateTime), " ", date.end.Format(time.DateTime))
-			dateBox.Add(widget.NewButton(startStop, func() {}))
+	c := container.NewVBox(logo)
+	for project, dates := range records {
+		list := widget.NewList(
+			func() int {
+				return len(dates)
+			},
+			func() fyne.CanvasObject {
+				template := widget.NewLabel("placeholder")
+				//template.Resize(fyne.Size{Width: 100})
+				return template
+			},
+			func(i widget.ListItemID, o fyne.CanvasObject) {
+				o.(*widget.Label).SetText(fmt.Sprint(dates[i].start.Format(time.DateTime), "--", dates[i].end.Format(time.DateTime)))
+			},
+		)
+		list.OnSelected = func(id widget.ListItemID) {
+			fmt.Println("record selected", id)
+			fmt.Println(dates[id].id, dates[id].start, dates[id].end)
 		}
-		labelBox.Add(dateBox)
-
+		padded := container.NewVScroll(list)
+		padded.SetMinSize(fyne.Size{Height: 120})
+		c.Add(widget.NewLabel(project))
+		c.Add(padded)
 	}
-	c := container.NewVBox(logo, labelBox)
 	return c
 }
