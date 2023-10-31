@@ -33,6 +33,10 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 	logo.FillMode = canvas.ImageFillOriginal
 	c := container.NewVBox(logo)
 	for project, dates := range records {
+		var duration time.Duration
+		for _, date := range dates {
+			duration = duration + date.end.Sub(date.start)
+		}
 		list := widget.NewList(
 			func() int {
 				return len(dates)
@@ -68,11 +72,12 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 			}, w)
 			d.Resize(fyne.Size{Width: 400})
 			d.Show()
+			c.Refresh()
 
 		}
 		padded := container.NewVScroll(list)
 		padded.SetMinSize(fyne.Size{Height: 120})
-		c.Add(widget.NewLabel(project))
+		c.Add(widget.NewLabel(project + ": " + models.FmtDuration(duration)))
 		c.Add(padded)
 	}
 	return c
