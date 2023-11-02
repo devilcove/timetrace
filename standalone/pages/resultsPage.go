@@ -33,6 +33,8 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 	logo.FillMode = canvas.ImageFillOriginal
 	c := container.NewVBox(logo)
 	for project, dates := range records {
+		project := project
+		dates := dates
 		var duration time.Duration
 		for _, date := range dates {
 			duration = duration + date.end.Sub(date.start)
@@ -51,8 +53,6 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 			},
 		)
 		list.OnSelected = func(id widget.ListItemID) {
-			fmt.Println("record selected", id)
-			fmt.Println(dates[id].id, dates[id].start, dates[id].end)
 			start := widget.NewEntry()
 			start.Text = dates[id].start.Format(time.DateTime)
 			end := widget.NewEntry()
@@ -77,8 +77,10 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 		}
 		padded := container.NewVScroll(list)
 		padded.SetMinSize(fyne.Size{Height: 120})
-		c.Add(widget.NewLabel(project + ": " + models.FmtDuration(duration)))
+		label := fmt.Sprintf("%s: %s %d", project, models.FmtDuration(duration), len(dates))
+		c.Add(widget.NewLabel(label))
 		c.Add(padded)
+		c.Refresh()
 	}
 	return c
 }
