@@ -22,9 +22,12 @@ var currentPage = "status"
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		slog.Error("read env", "error", err)
+		slog.Warn("read env", "error", err)
 	}
-	verbosity, _ := strconv.Atoi(os.Getenv("VERBOSITY"))
+	verbosity, err := strconv.Atoi(os.Getenv("VERBOSITY"))
+	if err != nil {
+		verbosity = 3
+	}
 	setLogging(verbosity)
 	database.InitializeDatabase()
 	p := database.GetActiveProject()
@@ -38,10 +41,20 @@ func main() {
 	w.SetContent(pages.BuildStatusPage(w))
 	go func() {
 		for range time.Tick(time.Minute) {
+			slog.Info("refreshing page")
 			if pages.GetCurrentPage() == "status" {
-				slog.Info("refreshing page")
 				w.SetContent(pages.BuildStatusPage(w))
 			}
+		}
+	}()
+	go func() {
+		if os.Getenv("sync") != "true" {
+			slog.Info("sync not set")
+			return
+		}
+		for range time.Tick(time.Minute * 5) {
+			slog.Info("syncing db")
+			sync()
 		}
 	}()
 
@@ -73,4 +86,14 @@ func setLogging(verbosity int) *slog.Logger {
 		level.Set(slog.LevelError)
 	}
 	return logger
+}
+
+func sync() {
+	file, err := os.ReadFile("./time.db")
+	if err != nil {
+		slog.Error("sync database", "error", err)
+	}
+	if err := os.WriteFile("./time.db.backup", file, os.ModePerm); err != nil {
+		slog.Error("save sync", "error", err)
+	}
 }
