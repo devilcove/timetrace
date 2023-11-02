@@ -24,4 +24,8 @@ go.work
 
 # dbfiles
 **/time.db
+**/time.db.backup
 **/test.db
+
+# env files
+**/.env
