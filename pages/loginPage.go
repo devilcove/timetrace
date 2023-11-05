@@ -1,10 +1,8 @@
 package pages
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -41,22 +39,10 @@ func BuildLoginPage(w fyne.Window) *fyne.Container {
 
 	// connect btn
 	connectBtn := widget.NewButton("Connect", func() {
-		cookie, err := login(usernameTextbox.Text, passwordTextbox.Text)
+		err := login(usernameTextbox.Text, passwordTextbox.Text)
 		if err != nil {
 			slog.Error("failed to authenticate", "error", err)
 			dialog.ShowError(fmt.Errorf("%w. failed to authenticate", err), w)
-			return
-		}
-		cookieJ, err := json.Marshal(cookie)
-		if err != nil {
-			slog.Error("failed to marshal cookie", err)
-			dialog.ShowError(fmt.Errorf("%w. failed to marshal cookie", err), w)
-			return
-
-		}
-		if err := os.WriteFile(os.TempDir()+"/cookie.timetrace", cookieJ, 0644); err != nil {
-			slog.Error("failed to save cookie", "error", err)
-			dialog.ShowError(fmt.Errorf("%w. failed to save cookie", err), w)
 			return
 		}
 		w.SetContent(BuildMainPage(w))

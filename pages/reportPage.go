@@ -132,6 +132,9 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		if err := json.Unmarshal(body, &reports); err != nil {
 			return
 		}
+		if err := saveCookie(response.Cookies()); err != nil {
+			return
+		}
 		w.SetContent(BuildResultsPage(w, reports))
 
 	})

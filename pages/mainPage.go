@@ -9,7 +9,6 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -27,6 +26,8 @@ const (
 	MainPage Route = iota
 	LoginPage
 )
+
+var cookie http.Cookie
 
 type DisplayStatus struct {
 	Current      string
@@ -126,7 +127,7 @@ func Navigate(w fyne.Window, page Route) {
 	}
 }
 
-func login(u, p string) (http.Cookie, error) {
+func login(u, p string) error {
 	client := http.Client{}
 	postData := struct {
 		Username string
@@ -137,46 +138,49 @@ func login(u, p string) (http.Cookie, error) {
 	}
 	payload, err := json.Marshal(postData)
 	if err != nil {
-		return http.Cookie{}, err
+		return err
 	}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/login", bytes.NewBuffer(payload))
 	if err != nil {
-		return http.Cookie{}, err
+		return err
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		return http.Cookie{}, err
+		return err
 	}
 	defer response.Body.Close()
 	ok := response.StatusCode >= 200 && response.StatusCode < 300
 	if !ok {
-		return http.Cookie{}, fmt.Errorf("status %s", response.Status)
+		return fmt.Errorf("status %s", response.Status)
 	}
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return http.Cookie{}, fmt.Errorf("read response %v", err)
+		return fmt.Errorf("read response %v", err)
 	}
 	if err := json.Unmarshal(body, &currentUser); err != nil {
-		return http.Cookie{}, fmt.Errorf("json unmarshal %v", err)
+		return fmt.Errorf("json unmarshal %v", err)
 	}
-	for _, c := range response.Cookies() {
-		if c.Name == "time" {
-			return *c, nil
-		}
+	if err := saveCookie(response.Cookies()); err != nil {
+		return fmt.Errorf("no cookie in response: status %s", response.Status)
 	}
-	return http.Cookie{}, fmt.Errorf("no cookie in response: status %s", response.Status)
+	return nil
 }
 
 func getCookie() (http.Cookie, error) {
-	cookie := http.Cookie{}
-	file, err := os.ReadFile(os.TempDir() + "/cookie.timetrace")
-	if err != nil {
-		return cookie, err
-	}
-	if err := json.Unmarshal(file, &cookie); err != nil {
-		return cookie, err
+	if cookie.Name == "" {
+		return cookie, errors.New("empty cookier")
 	}
 	return cookie, nil
+}
+
+func saveCookie(cookies []*http.Cookie) error {
+	for _, c := range cookies {
+		if c.Name == "time" {
+			cookie = *c
+			return nil
+		}
+	}
+	return errors.New("no cookie")
 }
 
 func GetStatus() (models.StatusResponse, error) {
@@ -217,6 +221,9 @@ func GetStatus() (models.StatusResponse, error) {
 		return data, err
 	}
 	loggedIn = true
+	if err := saveCookie(response.Cookies()); err != nil {
+		return data, err
+	}
 	return data, nil
 }
 
@@ -240,6 +247,10 @@ func stop() {
 	}
 	if response.StatusCode != http.StatusOK {
 		slog.Error("status code", "status", response.Status, "code", response.StatusCode)
+		return
+	}
+	if err := saveCookie(response.Cookies()); err != nil {
+		slog.Error("cookie", "error", err)
 		return
 	}
 }
