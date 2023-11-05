@@ -72,15 +72,12 @@ func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 			}, w)
 			d.Resize(fyne.Size{Width: 400})
 			d.Show()
-			c.Refresh()
-
 		}
 		padded := container.NewVScroll(list)
 		padded.SetMinSize(fyne.Size{Height: 120})
 		label := fmt.Sprintf("%s: %s %d", project, models.FmtDuration(duration), len(dates))
 		c.Add(widget.NewLabel(label))
 		c.Add(padded)
-		c.Refresh()
 	}
 	return c
 }
