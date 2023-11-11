@@ -1,44 +1,33 @@
 package pages
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
-	"os"
+	"regexp"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"github.com/devilcove/timetraced/models"
+	"github.com/devilcove/timetrace/database"
+	"github.com/devilcove/timetrace/models"
+	"github.com/google/uuid"
 )
 
-var loggedIn bool = true
-
 func buildMenu(w fyne.Window) error {
-	slog.Info("building menu", "loggedin", loggedIn)
 	//File
 	status := fyne.NewMenuItem("Status", func() {
-		w.SetContent(BuildMainPage(w))
+		SetCurrentPage("status")
+		w.SetContent(StatusPage(w))
 	})
-	logout := fyne.NewMenuItem("Logout", func() {
-		loggedIn = false
-		//clear cookie file
-		cookie, err := os.Create(os.TempDir() + "/cookie.timetrace")
-		if err != nil {
-			slog.Error("delete cookie store", "error", err)
-		}
-		cookie.Close()
-		w.SetContent(BuildLoginPage(w))
+	hide := fyne.NewMenuItem("Hide", func() {
+		w.Hide()
 	})
 	quit := fyne.NewMenuItem("Quit", func() {
 		w.Close()
 	})
-	fileMenu := fyne.NewMenu("File", status, logout, quit)
+	fileMenu := fyne.NewMenu("File", status, hide, quit)
 	//Projects
 	projects := getProjects()
 	projectsMenu := fyne.NewMenu("Projects")
@@ -48,129 +37,36 @@ func buildMenu(w fyne.Window) error {
 		projectsMenu.Items[i] = fyne.NewMenuItem(project.Name, func() {
 			slog.Info("selected project", "project", project.Name)
 			start(project.Name)
-			w.SetContent(BuildMainPage(w))
+			SetCurrentPage("status")
+			w.SetContent(StatusPage(w))
 		})
 	}
-	if currentUser.IsAdmin {
-		projectsMenu.Items = append(projectsMenu.Items, fyne.NewMenuItem("Add Project", func() {
-			project := widget.NewEntry()
-			project.Resize(fyne.Size{Width: 800})
-			items := []*widget.FormItem{
-				widget.NewFormItem("Project to Add", project),
+	projectsMenu.Items = append(projectsMenu.Items, fyne.NewMenuItem("Add Project", func() {
+		project := widget.NewEntry()
+		items := []*widget.FormItem{
+			widget.NewFormItem("Project to Add", project),
+		}
+		d := dialog.NewForm("Add Project", "Add  ", "Cancel", items, func(b bool) {
+			if !b {
+				return
 			}
-			d := dialog.NewForm("Add Project", "Add  ", "Cancel", items, func(b bool) {
-				if !b {
-					return
-				}
-				if err := addProject(project.Text); err != nil {
-					dialog.ShowError(err, w)
-				}
-			}, w)
-			d.Resize(fyne.Size{Width: 400})
-			d.Show()
-			buildMenu(w)
-			w.Content().Refresh()
-		}))
-	}
+			if err := addProject(project.Text); err != nil {
+				dialog.ShowError(err, w)
+			}
+		}, w)
+		d.Resize(fyne.Size{Width: 400})
+		d.Show()
+		buildMenu(w)
+		SetCurrentPage("status")
+		w.SetContent(StatusPage(w))
+	}))
 
 	//Reports
 	reportButton := fyne.NewMenuItem("report", func() {
-		w.SetContent(BuildReportPage(w))
+		SetCurrentPage("genReports")
+		w.SetContent(ReportPage(w))
 	})
 	reportsMenu := fyne.NewMenu("Reports", reportButton)
-
-	// Users
-	usersMenu := &fyne.Menu{}
-	if currentUser.IsAdmin {
-		users := getUsers()
-		usersMenu = fyne.NewMenu("Users")
-		usersMenu.Items = make([]*fyne.MenuItem, len(users))
-		for i, user := range users {
-			user := user
-			usersMenu.Items[i] = fyne.NewMenuItem("Edit "+user.Username, func() {
-				password := widget.NewPasswordEntry()
-				items := []*widget.FormItem{
-					widget.NewFormItem("New Password", password),
-				}
-				d := dialog.NewForm("Edit User", "Submit", "Cancel", items, func(b bool) {
-					if !b {
-						return
-					}
-					user.Password = password.Text
-					if err := editUser(user); err != nil {
-						dialog.ShowError(err, w)
-					}
-				}, w)
-				d.Resize(fyne.Size{Width: 400})
-				d.Show()
-				w.SetContent(BuildMainPage(w))
-			})
-		}
-		usersMenu.Items = append(usersMenu.Items, fyne.NewMenuItem("Add User", func() {
-			user := widget.NewEntry()
-			password := widget.NewPasswordEntry()
-			user.Resize(fyne.Size{Width: 800})
-			items := []*widget.FormItem{
-				widget.NewFormItem("User to Add", user),
-				widget.NewFormItem("Password", password),
-			}
-			d := dialog.NewForm("Add User", "Add  ", "Cancel", items, func(b bool) {
-				if !b {
-					return
-				}
-				err := addUser(models.User{Username: user.Text, Password: password.Text})
-				if err != nil {
-					dialog.ShowError(err, w)
-				} else {
-					dialog.ShowInformation("added user", user.Text, w)
-				}
-
-			}, w)
-			d.Resize(fyne.Size{Width: 400})
-			d.Show()
-			w.SetContent(BuildMainPage(w))
-
-		}))
-		usersMenu.Items = append(usersMenu.Items, fyne.NewMenuItem("Delete User", func() {
-			user := widget.NewEntry()
-			user.Resize(fyne.Size{Width: 800})
-			items := []*widget.FormItem{
-				widget.NewFormItem("User to Delete", user),
-			}
-			d := dialog.NewForm("Delete User", "Delete", "Cancel", items, func(b bool) {
-				if !b {
-					return
-				}
-				if err := deleteUser(user.Text); err != nil {
-					dialog.ShowError(err, w)
-				}
-			}, w)
-			d.Resize(fyne.Size{Width: 400})
-			d.Show()
-			w.SetContent(BuildMainPage(w))
-		}))
-	} else {
-		usersMenu = fyne.NewMenu("Users", fyne.NewMenuItem("Edit Password", func() {
-			user := currentUser
-			password := widget.NewPasswordEntry()
-			items := []*widget.FormItem{
-				widget.NewFormItem("New Password", password),
-			}
-			d := dialog.NewForm("Edit User", "Submit", "Cancel", items, func(b bool) {
-				if !b {
-					return
-				}
-				user.Password = password.Text
-				if err := editUser(user); err != nil {
-					dialog.ShowError(err, w)
-				}
-			}, w)
-			d.Resize(fyne.Size{Width: 400})
-			d.Show()
-			w.SetContent(BuildMainPage(w))
-
-		}))
-	}
 
 	// About
 	helpMenuItem := fyne.NewMenuItem("Help", func() {
@@ -178,232 +74,61 @@ func buildMenu(w fyne.Window) error {
 	})
 	aboutMenu := fyne.NewMenu("About", helpMenuItem)
 	//MENU
-	menu := fyne.NewMainMenu(fileMenu, projectsMenu, usersMenu, reportsMenu, aboutMenu)
+	menu := fyne.NewMainMenu(fileMenu, projectsMenu, reportsMenu, aboutMenu)
 	w.SetMainMenu(menu)
 	return nil
 }
 
 func getProjects() (projects []models.Project) {
-	cookie, err := getCookie()
+	projects, err := database.GetAllProjects()
 	if err != nil {
-		loggedIn = false
-		return
-	}
-	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/projects", nil)
-	if err != nil {
-		return
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return
-	}
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-	if err := json.Unmarshal(body, &projects); err != nil {
-		return
+		slog.Error("retrieve projects", "error", err)
 	}
 	return projects
 }
 
 func addProject(p string) error {
-	project := models.Project{Name: p}
-	payload, err := json.Marshal(project)
-	if err != nil {
-		return err
+	if regexp.MustCompile(`\s+`).MatchString(p) {
+		return errors.New("invalid project name")
 	}
-	cookie, err := getCookie()
-	if err != nil {
-		loggedIn = false
-		return err
+	if _, err := database.GetProject(p); err != nil && err != database.ErrNoResults {
+		return fmt.Errorf("project exists %w", err)
 	}
-	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/projects", bytes.NewBuffer(payload))
-	if err != nil {
-		return err
+	project := models.Project{
+		Name:    p,
+		Active:  true,
+		Updated: time.Now(),
 	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return err
+	if err := database.SaveProject(&project); err != nil {
+		return fmt.Errorf("add new project %w", err)
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("status error %s", response.Status)
-	}
-	fmt.Println("add projects", p)
 	return nil
 }
 
 func start(p string) error {
-	cookie, err := getCookie()
+	project, err := database.GetProject(p)
 	if err != nil {
-		loggedIn = false
+		return fmt.Errorf("tracking start for project %s, %w", p, err)
+	}
+	if !project.Active {
+		return errors.New("project is not active")
+	}
+	if models.IsTrackingActive() {
+		if err := stop(); err != nil {
+			slog.Error("stop tracking project", "error", err)
+			return err
+		}
+	}
+	record := models.Record{
+		ID:      uuid.New(),
+		Project: p,
+		Start:   time.Now(),
+	}
+	if err := database.SaveRecord(&record); err != nil {
+		slog.Error("save record", "error", err)
 		return err
 	}
-	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/projects/"+p+"/start", nil)
-	if err != nil {
-		return err
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("status error %s", response.Status)
-	}
-	fmt.Println("start recording projects", p)
+	models.TrackingActive(project)
+	slog.Info("tracking started", "project", p)
 	return nil
-}
-
-func getUsers() (users []models.User) {
-	cookie, err := getCookie()
-	if err != nil {
-		loggedIn = false
-		return
-	}
-	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/users", nil)
-	if err != nil {
-		return
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return
-	}
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-	if err := json.Unmarshal(body, &users); err != nil {
-		return
-	}
-	return
-}
-
-func getUser() (user models.User) {
-	cookie, err := getCookie()
-	if err != nil {
-		loggedIn = false
-		return
-	}
-	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/users/current", nil)
-	if err != nil {
-		return
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return
-	}
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return
-	}
-	if err := json.Unmarshal(body, &user); err != nil {
-		return
-	}
-	return
-}
-
-func editUser(u models.User) error {
-	cookie, err := getCookie()
-	if err != nil {
-		loggedIn = false
-		return errors.New("not logged in")
-	}
-	client := &http.Client{Timeout: time.Second * 10}
-	payload, err := json.Marshal(u)
-	if err != nil {
-		return fmt.Errorf("marshal %w", err)
-	}
-	req, err := http.NewRequest(http.MethodPut, "http://localhost:8080/users", bytes.NewBuffer(payload))
-	if err != nil {
-		return fmt.Errorf("create request %w", err)
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("http %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad request %s", response.Status)
-	}
-	return nil
-}
-
-func addUser(u models.User) error {
-	cookie, err := getCookie()
-	if err != nil {
-		loggedIn = false
-		return errors.New("not logged in")
-	}
-	client := &http.Client{Timeout: time.Second * 10}
-	payload, err := json.Marshal(u)
-	if err != nil {
-		return fmt.Errorf("marshal %w", err)
-	}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/users", bytes.NewBuffer(payload))
-	if err != nil {
-		return fmt.Errorf("create request %w", err)
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("http %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("bad request %s", response.Status)
-	}
-	slog.Info("added user", "user", u.Username)
-	return nil
-}
-
-func deleteUser(u string) error {
-	cookie, err := getCookie()
-	if err != nil {
-		loggedIn = false
-		return errors.New("not logged in")
-	}
-	client := &http.Client{Timeout: time.Second * 10}
-	req, err := http.NewRequest(http.MethodDelete, "http://localhost:8080/users/"+u, nil)
-	if err != nil {
-		return fmt.Errorf("create request %w", err)
-	}
-	req.AddCookie(&cookie)
-	response, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("http %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("bad request %s", response.Status)
-	}
-	return nil
-}
-
-func getReport(s, e time.Time) {
-	slog.Info("get report", "start", s, "end", e)
 }

@@ -1,12 +1,8 @@
 package pages
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -14,21 +10,22 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/devilcove/timetraced/models"
+	"github.com/devilcove/timetrace/database"
+	"github.com/devilcove/timetrace/models"
 )
 
 var (
 	globalAppTime = time.Now()
 )
 
-func BuildReportPage(w fyne.Window) *fyne.Container {
+// ReportPage builds a resort page for display
+func ReportPage(w fyne.Window) *fyne.Container {
 	buildMenu(w)
 	// start time
 	startTime := time.Now()
 	startStr := binding.NewString()
 	startStr.Set(time.Now().Format("2006-01-02"))
-	start := widget.NewEntryWithData(startStr)
-	//start.Size(fyne.Size{Width: 100})
+	startEntry := widget.NewEntryWithData(startStr)
 	startCal := newCalendar(time.Now(), func(t time.Time) {
 		fmt.Println("time selected", t)
 		startStr.Set(t.Format("2006-01-02"))
@@ -40,13 +37,13 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		position.Y += startButton.Size().Height
 		startCal.showAtPos(w.Canvas(), position)
 	})
-	startBox := container.NewVBox(start, startButton)
-	startBox.Resize(fyne.Size{Width: 100})
+	startText := widget.NewLabel("Start Time:")
+	start := container.NewPadded(container.New(&datePicker{}, startText, startEntry, startButton))
 	//endTime
 	endTime := time.Now()
 	endStr := binding.NewString()
 	endStr.Set(time.Now().Format("2006-01-02"))
-	end := widget.NewEntryWithData(endStr)
+	endEntry := widget.NewEntryWithData(endStr)
 	endCal := newCalendar(time.Now(), func(t time.Time) {
 		fmt.Println("time selected", t)
 		endStr.Set(t.Format("2006-01-02"))
@@ -58,9 +55,11 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 		position.Y += endButton.Size().Height
 		endCal.showAtPos(w.Canvas(), position)
 	})
-	endBox := container.NewVBox(end, endButton)
+	endText := widget.NewLabel("End Time:  ")
+	end := container.NewPadded(container.New(&datePicker{}, endText, endEntry, endButton))
 
 	//projects
+	projectText := widget.NewLabel("Select Projects")
 	projects := getProjects()
 	projectOptions := []string{}
 	for _, project := range projects {
@@ -75,78 +74,28 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 			projectsCheckGroup.SetSelected([]string{})
 		}
 	})
-	projectBox := container.NewVBox(all, projectsCheckGroup)
+	projectBox := container.NewPadded(container.NewVBox(projectText, all, projectsCheckGroup))
 
-	//users
-	userOptions := []string{}
-	for _, user := range getUsers() {
-		user := user
-		userOptions = append(userOptions, user.Username)
-	}
-	usersCheckBoxGroup := widget.NewCheckGroup(userOptions, func(s []string) {})
-	usersCheckBoxGroup.SetSelected([]string{currentUser.Username})
-	all = widget.NewCheck("Select All Users", func(b bool) {
-		if b {
-			usersCheckBoxGroup.SetSelected(userOptions)
-		} else {
-			usersCheckBoxGroup.SetSelected([]string{})
-		}
-	})
-	userBox := container.NewVBox(all, usersCheckBoxGroup)
 	//Submit
-	button := widget.NewButton("Submit", func() {
-		cookie, err := getCookie()
-		if err != nil {
-			loggedIn = false
-			return
-		}
-		client := &http.Client{Timeout: time.Second * 10}
+	button := container.NewPadded(widget.NewButton("Submit", func() {
+
 		data := models.ReportRequest{
 			Start:    startTime,
 			End:      endTime,
 			Projects: projectsCheckGroup.Selected,
-			Users:    usersCheckBoxGroup.Selected,
 		}
-		payload, err := json.Marshal(data)
+		reports, err := database.GetReportRecords(data)
 		if err != nil {
-			slog.Error("json error", "error", err)
+			slog.Error("get records", "error", err)
 		}
-		req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/reports", bytes.NewBuffer(payload))
-		if err != nil {
-			return
-		}
-		req.AddCookie(&cookie)
-		response, err := client.Do(req)
-		if err != nil {
-			return
-		}
-		defer response.Body.Close()
-		if response.StatusCode != http.StatusOK {
-			return
-		}
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			return
-		}
-		reports := []models.Record{}
-		if err := json.Unmarshal(body, &reports); err != nil {
-			return
-		}
-		if err := saveCookie(response.Cookies()); err != nil {
-			return
-		}
-		w.SetContent(BuildResultsPage(w, reports))
+		SetCurrentPage("results")
+		w.SetContent(ResultsPage(w, reports))
 
-	})
+	}))
+
 	//layout
 	vBox := &fyne.Container{}
-	if currentUser.IsAdmin {
-		vBox = container.NewVBox(startBox, endBox, projectBox, userBox, button)
-	} else {
-		vBox = container.NewVBox(startBox, endBox, projectBox, button)
-
-	}
-	vBox.Resize(fyne.Size{Width: 800})
+	vBox = container.NewVBox(start, end, projectBox, button)
 	w.SetContent(vBox)
 	return vBox
 }
