@@ -16,10 +16,6 @@ import (
 
 var currentPage = "status"
 
-//func init() {
-//pages.GetStatus()
-//}
-
 func main() {
 	if err := godotenv.Load(); err != nil {
 		slog.Warn("read env", "error", err)
@@ -38,12 +34,12 @@ func main() {
 	w := pages.GetMainWindow(a, "TimeTrace")
 	//w := a.NewWindow("Timetrace")
 	pages.SetCurrentPage("status")
-	w.SetContent(pages.BuildStatusPage(w))
+	w.SetContent(pages.StatusPage(w))
 	go func() {
 		for range time.Tick(time.Minute) {
 			slog.Info("refreshing page")
 			if pages.GetCurrentPage() == "status" {
-				w.SetContent(pages.BuildStatusPage(w))
+				w.SetContent(pages.StatusPage(w))
 			}
 		}
 	}()

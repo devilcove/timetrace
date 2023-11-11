@@ -23,7 +23,8 @@ type record struct {
 	project string
 }
 
-func BuildResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
+// ResultsPage builds the results page for display
+func ResultsPage(w fyne.Window, r []models.Record) *fyne.Container {
 	records := make(map[string][]record)
 	for _, data := range r {
 		records[data.Project] = append(records[data.Project], record{start: data.Start, end: data.End, id: data.ID, project: data.Project})

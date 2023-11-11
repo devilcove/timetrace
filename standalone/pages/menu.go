@@ -19,7 +19,7 @@ func buildMenu(w fyne.Window) error {
 	//File
 	status := fyne.NewMenuItem("Status", func() {
 		SetCurrentPage("status")
-		w.SetContent(BuildStatusPage(w))
+		w.SetContent(StatusPage(w))
 	})
 	hide := fyne.NewMenuItem("Hide", func() {
 		w.Hide()
@@ -38,7 +38,7 @@ func buildMenu(w fyne.Window) error {
 			slog.Info("selected project", "project", project.Name)
 			start(project.Name)
 			SetCurrentPage("status")
-			w.SetContent(BuildStatusPage(w))
+			w.SetContent(StatusPage(w))
 		})
 	}
 	projectsMenu.Items = append(projectsMenu.Items, fyne.NewMenuItem("Add Project", func() {
@@ -58,13 +58,13 @@ func buildMenu(w fyne.Window) error {
 		d.Show()
 		buildMenu(w)
 		SetCurrentPage("status")
-		w.SetContent(BuildStatusPage(w))
+		w.SetContent(StatusPage(w))
 	}))
 
 	//Reports
 	reportButton := fyne.NewMenuItem("report", func() {
 		SetCurrentPage("genReports")
-		w.SetContent(BuildReportPage(w))
+		w.SetContent(ReportPage(w))
 	})
 	reportsMenu := fyne.NewMenu("Reports", reportButton)
 

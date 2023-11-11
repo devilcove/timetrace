@@ -18,7 +18,8 @@ var (
 	globalAppTime = time.Now()
 )
 
-func BuildReportPage(w fyne.Window) *fyne.Container {
+// ReportPage builds a resort page for display
+func ReportPage(w fyne.Window) *fyne.Container {
 	buildMenu(w)
 	// start time
 	startTime := time.Now()
@@ -88,7 +89,7 @@ func BuildReportPage(w fyne.Window) *fyne.Container {
 			slog.Error("get records", "error", err)
 		}
 		SetCurrentPage("results")
-		w.SetContent(BuildResultsPage(w, reports))
+		w.SetContent(ResultsPage(w, reports))
 
 	}))
 

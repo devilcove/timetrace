@@ -17,16 +17,18 @@ import (
 
 var currentPage string
 
+// SetCurrentPage saves the pages currently displayed
 func SetCurrentPage(page string) {
 	currentPage = page
 }
 
+// GetCurrentPage returns the page currently displayed
 func GetCurrentPage() string {
 	return currentPage
 }
 
-func BuildStatusPage(w fyne.Window) *fyne.Container {
-
+// StatusPage builds status page for display
+func StatusPage(w fyne.Window) *fyne.Container {
 	buildMenu(w)
 	logo := canvas.NewImageFromResource(fyne.NewStaticResource("logo", assets.SmallLogo))
 	logo.FillMode = canvas.ImageFillOriginal
@@ -45,7 +47,7 @@ func BuildStatusPage(w fyne.Window) *fyne.Container {
 	stopButton := widget.NewButton("Stop    ", func() {
 		stop()
 		SetCurrentPage("status")
-		w.SetContent(BuildStatusPage(w))
+		w.SetContent(StatusPage(w))
 	})
 	stop := container.NewCenter(stopButton)
 	todayTotals := widget.NewLabel("Total Time Today")
@@ -60,6 +62,7 @@ func BuildStatusPage(w fyne.Window) *fyne.Container {
 	return c
 }
 
+// GetMainWindow sets up the main window
 func GetMainWindow(app fyne.App, title string) fyne.Window {
 	w := app.NewWindow(title)
 	w.SetMaster()
@@ -88,6 +91,7 @@ func buildSystemTray(w fyne.Window) *fyne.Menu {
 	return tray
 }
 
+// GetStatus retrieves the current day tracking events
 func GetStatus() (models.StatusResponse, error) {
 	durations := make(map[string]time.Duration)
 	status := models.Status{}
